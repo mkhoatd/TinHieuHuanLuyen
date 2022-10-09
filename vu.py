@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 import librosa
 
 # speech-silence and voice-unvoiced
-audio_name='studio_M1'
+audio_name='phone_F1'
 def read_lab(lab_file_name: str):
     data = []
     with open(lab_file_name) as f:
@@ -71,10 +71,10 @@ window_len=int(sr*0.01)
 STE=np.array([np.sum(1/window_len*np.square(signal[i:i+window_len]))/np.ones(window_len) 
               for i in range(0, len(signal), window_len)])
 STE=STE.reshape(-1)
-STE_without_sl_for_plot=np.array([np.sum(1/window_len*np.square(signal_without_sl[i:i+window_len]))/np.ones(window_len) 
-                        for i in range(0, len(signal_without_sl), window_len)])
 STE_without_sl=np.array([np.sum(1/window_len*np.square(signal_without_sl[i:i+window_len]))/np.ones(window_len) 
-                        for i in range(0, len(signal_without_sl), window_len)])=
+                        for i in range(0, len(signal_without_sl), window_len)])
+# STE_without_sl=np.array([np.sum(1/window_len*np.square(signal_without_sl[i:i+window_len])) 
+#                         for i in range(0, len(signal_without_sl), window_len)])
 STE_without_sl=STE_without_sl.reshape(-1)
 STE_norm=array_norm(STE)
 STE_without_sl_norm=array_norm(STE_without_sl)
@@ -92,7 +92,9 @@ STE_without_sl_norm=array_norm(STE_without_sl)
 # Calculate MA
 MA=np.array([np.sum(np.abs(signal[i:i+window_len]))/np.ones(window_len) for i in range(0, len(signal), window_len)])
 MA=MA.reshape(-1)
+MA_without_sl=np.array([np.sum(np.abs(signal_without_sl[i:i+window_len]))/np.ones(window_len) for i in range(0, len(signal_without_sl), window_len)])
 MA_norm=array_norm(MA)
+MA_without_sl_norm=array_norm(MA_without_sl)
 # %%
 
 
@@ -123,8 +125,8 @@ a,cnts,bins=outputT(STE_without_sl)
 a=a/np.ones(len(t))
 # %%
 fig=go.Figure()
-# fig.add_trace(go.Scatter(x=t, y=signal, name='signal'))
-fig.add_trace(go.Scatter(x=t, y=STE, name='STE', line=dict(color='firebrick', width=1, dash='dot')))
+fig.add_trace(go.Scatter(x=t, y=signal, name='signal'))
+# fig.add_trace(go.Scatter(x=t, y=STE, name='STE', line=dict(color='firebrick', width=1, dash='dot')))
 # fig.add_trace(go.Scatter(x=t, y=MA, name='MA', line=dict(color='royalblue', width=1, dash='dot')))
 fig.add_trace(go.Scatter(x=t, y=a, name='T'))
 for i in range(len(data_v_uv)):

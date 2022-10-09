@@ -1,17 +1,24 @@
-import scipy as sp
+#%%
+import plotly.graph_objects as go
+import numpy as np
+np.random.seed(1)
 
-# Create input of real sine wave
-fs = 1.0
-fc = 0.25
-n = sp.arange(0, 300)
-x = sp.cos(2*sp.pi*n*fc/fs)
+N = 70
 
+fig = go.Figure(data=[go.Mesh3d(x=(70*np.random.randn(N)),
+                   y=(55*np.random.randn(N)),
+                   z=(40*np.random.randn(N)),
+                   opacity=0.5,
+                   color='rgba(244,22,100,0.6)'
+                  )])
 
-# Rearrange x into 10 30 second windows
-x = sp.reshape(x, (-1, 30))
+fig.update_layout(
+    scene = dict(
+        xaxis = dict(nticks=4, range=[-100,100],),
+                     yaxis = dict(nticks=4, range=[-50,100],),
+                     zaxis = dict(nticks=4, range=[-100,100],),),
+    width=700,
+    margin=dict(r=20, l=10, b=10, t=10))
 
-# Calculate power over each window [J/s]
-p = sp.sum(x*x, 1)/x.size
-
-# Calculate energy [J = J/s * 30 second]
-e = p*x.size
+fig.show()
+# %%
