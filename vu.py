@@ -1,11 +1,11 @@
 # %%
-import librosa.display
-import librosa
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+import librosa
 
 # speech-silence and voice-unvoiced
+audio_name='studio_F2'
 def read_lab(lab_file_name: str):
     data = []
     with open(lab_file_name) as f:
@@ -14,12 +14,22 @@ def read_lab(lab_file_name: str):
     return data
 
 
-def get_closest(array, values):
-    array = np.array(array)
-    idx = np.searchsorted(array, values)
-    idx[array[idx] - values > np.diff(array).mean() * 0.5] -= 1
-    return array[idx]
+def get_closest(array_time, values):
+    array_time = np.array(array_time)
+    values = np.array(values, dtype=np.float64)
+    idx = np.searchsorted(array_time, values)
+    idx=np.array(idx)
+    idx[array_time[idx] - values > np.diff(array_time).mean() * 0.5] -= 1
+    return array_time[idx]
 
+
+def get_closest_idx(array_time, values):
+    array_time = np.array(array_time)
+    values = np.array(values, dtype=np.float64)
+    idx = np.searchsorted(array_time, values)
+    idx=np.array(idx)
+    idx[array_time[idx] - values > np.diff(array_time).mean() * 0.5] -= 1
+    return idx
 
 def array_norm(arr: np.ndarray):
     arr=np.copy(arr)
@@ -28,24 +38,53 @@ def array_norm(arr: np.ndarray):
     return (arr-min)/(max-min)
 
 
+def remove_sl(array:np.ndarray, data):
+    array=np.copy(array)
+    new_array=np.array([])
+    for line in data:
+        if line[2]!='sil':
+            idx1=int(get_closest_idx(t,line[0]))
+            idx2=int(get_closest_idx(t,line[1]))
+            new_array=np.append(new_array, array[idx1:idx2])
+    return new_array
+
+
 # %%
-signal, sr= librosa.load('./studio_F2.wav')
-# librosa.display.waveshow(signal, sr=sr)
+signal, sr= librosa.load(f'{audio_name}.wav')
+data=read_lab(f'{audio_name}.lab')
+mean_std=data[-2:]
+data=data[:-2]
+data_v_uv=list(filter(lambda x:(x[2]=='v' or x[2]=='uv'), data))
 t_i = 0
 t_f = signal.shape[0] / sr
 t = np.linspace(t_i, t_f, num=signal.shape[0])
-# fig=px.line(x=t, y=signal)
-# fig.show()
+t_without_sl=remove_sl(t, data)
+signal_without_sl=remove_sl(signal, data)
+fig=px.line(x=t, y=signal)
+fig.update_layout(title="signal with slience")
+fig.show()
+fig=px.line(x=t_without_sl, y=signal_without_sl)
+fig.update_layout(title="signal without slience")
+fig.show()
 # %%
 # Calculate STE
-window_len=490
-STE=np.array([np.sum(np.square(signal[i:i+window_len]))/np.ones(window_len) for i in range(0, len(signal), window_len)])
+window_len=int(sr*0.05)
+STE=np.array([np.sum(1/window_len*np.square(signal[i:i+window_len]))/np.ones(window_len) 
+              for i in range(0, len(signal), window_len)])
 STE=STE.reshape(-1)
+STE_without_sl=np.array([np.sum(1/window_len*np.square(signal_without_sl[i:i+window_len]))/np.ones(window_len) 
+                        for i in range(0, len(signal_without_sl), window_len)])
+STE_without_sl=STE_without_sl.reshape(-1)
 STE_norm=array_norm(STE)
-counts, bins=np.histogram(STE, bins=len(t)/window_len)
-bins=.5*(bins[:-1]+bins[1:])
-fig=px.bar(x=bins, y=counts)
-fig.show(renderer='browser')
+
+fig=go.Figure(data=[go.Histogram(x=STE_without_sl)])
+fig.show()
+# %%
+# Calculate spectral centroid
+# C=np.array([np.sum([(k+1)*signal[k] for k in range(i, i+window_len)])/np.sum(signal[])/np.ones(window_len) 
+#             for i in range(0, len(signal), window_len)])
+# C_without_sl=np.array([np.sum([(k+1)*signal[k] for k in range(i, i+window_len)])/np.sum([signal[k] for k in range(i, i+window_len)])/np.ones(window_len) 
+#             for i in range(0, len(signal), window_len)])
 
 # %%
 # Calculate MA
@@ -56,11 +95,6 @@ MA_norm=array_norm(MA)
 
 
 # %%
-data=read_lab('./studio_F2.lab')
-mean_std=data[-2:]
-data=data[:-2]
-data_v_uv=list(filter(lambda x:(x[2]=='v' or x[2]=='uv'), data))
-print(data_v_uv)
 # %%
 def outputT(STE):
     w=10000000
@@ -82,13 +116,13 @@ def outputT(STE):
     max2=X_Ste[max2Index]
     T=(w*max1+max2)/(w+1)
     return T
-a=outputT(STE)
-a=a/np.ones(len(STE))
+a=outputT(STE_without_sl)
+a=a/np.ones(len(t))
 # %%
 fig=go.Figure()
 fig.add_trace(go.Scatter(x=t, y=signal, name='signal'))
-fig.add_trace(go.Scatter(x=t, y=STE_norm, name='STE'))
-fig.add_trace(go.Scatter(x=t, y=MA_norm, name='MA'))
+fig.add_trace(go.Scatter(x=t, y=STE_without_sl, name='STE', line=dict(color='firebrick', width=1, dash='dot')))
+fig.add_trace(go.Scatter(x=t, y=MA, name='MA', line=dict(color='royalblue', width=1, dash='dot')))
 fig.add_trace(go.Scatter(x=t, y=a, name='T'))
 for i in range(len(data_v_uv)):
     color='green' if data_v_uv[i][2]=='v' else 'blue'
@@ -98,5 +132,5 @@ for i in range(len(data_v_uv)):
 fig.update_layout(
     title="Phone_F2"
 )
-fig.show(renderer="browser")
+fig.show()
 # %%
