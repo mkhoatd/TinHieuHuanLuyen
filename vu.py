@@ -3,6 +3,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 import librosa
+import matplotlib.pyplot as plt
 
 # speech-silence and voice-unvoiced
 audio_name='studio_F2'
@@ -76,8 +77,9 @@ STE_without_sl=np.array([np.sum(1/window_len*np.square(signal_without_sl[i:i+win
                         for i in range(0, len(signal_without_sl), window_len)])
 STE_without_sl=STE_without_sl.reshape(-1)
 STE_norm=array_norm(STE)
+STE_without_sl_norm=array_norm(STE_without_sl)
 
-fig=go.Figure(data=[go.Histogram(x=STE_without_sl)])
+fig=go.Figure(data=[go.Histogram(x=STE_without_sl_norm)])
 fig.show()
 # %%
 # Calculate spectral centroid
@@ -97,7 +99,7 @@ MA_norm=array_norm(MA)
 # %%
 # %%
 def outputT(STE):
-    w=10000000
+    w=1
     Hist_Ste, X_Ste = np.histogram(STE, len(STE))
     max1=Hist_Ste[1]
     max1Index=1
@@ -115,14 +117,15 @@ def outputT(STE):
     max1=X_Ste[max1Index]
     max2=X_Ste[max2Index]
     T=(w*max1+max2)/(w+1)
-    return T
-a=outputT(STE_without_sl)
+    return T, Hist_Ste, X_Ste
+a,cnts,bins=outputT(STE_without_sl_norm)
+plt.hist(STE_without_sl_norm)
 a=a/np.ones(len(t))
 # %%
 fig=go.Figure()
 fig.add_trace(go.Scatter(x=t, y=signal, name='signal'))
-fig.add_trace(go.Scatter(x=t, y=STE_without_sl, name='STE', line=dict(color='firebrick', width=1, dash='dot')))
-fig.add_trace(go.Scatter(x=t, y=MA, name='MA', line=dict(color='royalblue', width=1, dash='dot')))
+fig.add_trace(go.Scatter(x=t, y=STE, name='STE', line=dict(color='firebrick', width=1, dash='dot')))
+# fig.add_trace(go.Scatter(x=t, y=MA, name='MA', line=dict(color='royalblue', width=1, dash='dot')))
 fig.add_trace(go.Scatter(x=t, y=a, name='T'))
 for i in range(len(data_v_uv)):
     color='green' if data_v_uv[i][2]=='v' else 'blue'
