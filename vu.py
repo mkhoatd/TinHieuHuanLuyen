@@ -1,7 +1,6 @@
 # %%
 import numpy as np
 import plotly.graph_objects as go
-import plotly.express as px
 import librosa
 
 # speech-silence and voice-unvoiced
@@ -68,18 +67,20 @@ signal_without_sl=remove_sl(signal, data)
 # fig.show()
 # %%
 # Calculate STE
-window_len=int(sr*0.005)
+window_len=int(sr*0.01)
 STE=np.array([np.sum(1/window_len*np.square(signal[i:i+window_len]))/np.ones(window_len) 
               for i in range(0, len(signal), window_len)])
 STE=STE.reshape(-1)
-STE_without_sl=np.array([np.sum(1/window_len*np.square(signal_without_sl[i:i+window_len]))/np.ones(window_len) 
+STE_without_sl_for_plot=np.array([np.sum(1/window_len*np.square(signal_without_sl[i:i+window_len]))/np.ones(window_len) 
                         for i in range(0, len(signal_without_sl), window_len)])
+STE_without_sl=np.array([np.sum(1/window_len*np.square(signal_without_sl[i:i+window_len]))/np.ones(window_len) 
+                        for i in range(0, len(signal_without_sl), window_len)])=
 STE_without_sl=STE_without_sl.reshape(-1)
 STE_norm=array_norm(STE)
 STE_without_sl_norm=array_norm(STE_without_sl)
 
-fig=go.Figure(data=[go.Histogram(x=STE_without_sl_norm)])
-fig.show()
+# fig=go.Figure(data=[go.Histogram(x=STE_without_sl_norm)])
+# fig.show()
 # %%
 # Calculate spectral centroid
 # C=np.array([np.sum([(k+1)*signal[k] for k in range(i, i+window_len)])/np.sum(signal[])/np.ones(window_len) 
@@ -122,7 +123,7 @@ a,cnts,bins=outputT(STE_without_sl)
 a=a/np.ones(len(t))
 # %%
 fig=go.Figure()
-fig.add_trace(go.Scatter(x=t, y=signal, name='signal'))
+# fig.add_trace(go.Scatter(x=t, y=signal, name='signal'))
 fig.add_trace(go.Scatter(x=t, y=STE, name='STE', line=dict(color='firebrick', width=1, dash='dot')))
 # fig.add_trace(go.Scatter(x=t, y=MA, name='MA', line=dict(color='royalblue', width=1, dash='dot')))
 fig.add_trace(go.Scatter(x=t, y=a, name='T'))
