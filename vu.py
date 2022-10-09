@@ -3,10 +3,9 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 import librosa
-import matplotlib.pyplot as plt
 
 # speech-silence and voice-unvoiced
-audio_name='studio_F2'
+audio_name='studio_M1'
 def read_lab(lab_file_name: str):
     data = []
     with open(lab_file_name) as f:
@@ -61,15 +60,15 @@ t_f = signal.shape[0] / sr
 t = np.linspace(t_i, t_f, num=signal.shape[0])
 t_without_sl=remove_sl(t, data)
 signal_without_sl=remove_sl(signal, data)
-fig=px.line(x=t, y=signal)
-fig.update_layout(title="signal with slience")
-fig.show()
-fig=px.line(x=t_without_sl, y=signal_without_sl)
-fig.update_layout(title="signal without slience")
-fig.show()
+# fig=px.line(x=t, y=signal)
+# fig.update_layout(title="signal with slience")
+# fig.show()
+# fig=px.line(x=t_without_sl, y=signal_without_sl)
+# fig.update_layout(title="signal without slience")
+# fig.show()
 # %%
 # Calculate STE
-window_len=int(sr*0.05)
+window_len=int(sr*0.005)
 STE=np.array([np.sum(1/window_len*np.square(signal[i:i+window_len]))/np.ones(window_len) 
               for i in range(0, len(signal), window_len)])
 STE=STE.reshape(-1)
@@ -118,8 +117,8 @@ def outputT(STE):
     max2=X_Ste[max2Index]
     T=(w*max1+max2)/(w+1)
     return T, Hist_Ste, X_Ste
-a,cnts,bins=outputT(STE_without_sl_norm)
-plt.hist(STE_without_sl_norm)
+a,cnts,bins=outputT(STE_without_sl)
+
 a=a/np.ones(len(t))
 # %%
 fig=go.Figure()
@@ -133,7 +132,7 @@ for i in range(len(data_v_uv)):
                   fillcolor=color,
                   opacity=0.25, line_width=0)
 fig.update_layout(
-    title="Phone_F2"
+    title=audio_name
 )
 fig.show()
 # %%
