@@ -162,17 +162,29 @@ def jitter_remove(VU_jit, frame_size):
 
 def voiced_unvoiced(audio_name: str):
     audio_name_list=['studio_F1', 'studio_M1', 'phone_M1', 'phone_F1']
-    signal_list=[]
-    sr_list=[]
-    t_list=[]
-    timestamp_label_list=[]
-    signal_frames_list=[]
-    time_frames_list=[]
-    frame_size_list=[]
-    frames_count_list=[]
-    for i in range(len(audio_name_list))
+    signal_list=[0]*len(audio_name_list)
+    sr_list=[0]*len(audio_name_list)
+    t_list=[0]*len(audio_name_list)
+    timestamp_label_list=[0]*len(audio_name_list)
+    signal_frames_list=[0]*len(audio_name_list)
+    time_frames_list=[0]*len(audio_name_list)
+    frame_size_list=[0]*len(audio_name_list)
+    frames_count_list=[0]*len(audio_name_list)
+    STE_list=[0]*len(audio_name_list)
+    ZCR_list=[0]*len(audio_name_list)
+    STE_voiced_list=[0]*len(audio_name_list)
+    STE_unvoiced_list=[0]*len(audio_name_list)
+    ZCR_voiced_list=[0]*len(audio_name_list)
+    ZCR_unvoiced_list=[0]*len(audio_name_list)
+    for i in range(len(audio_name_list)):
         signal_list[i], sr_list[i], t_list[i], timestamp_label_list[i] = load_data(audio_name_list[i])
-    
+        signal_frames_list[i], time_frames_list[i], frame_size_list[i], frames_count_list[i] = separate_frames(signal_list[i], sr_list[i], t_list[i])
+        signal_list[i]=signal_list[i][:frames_count_list[i]*frame_size_list[i]]
+        t_list[i]=t_list[i][:frames_count_list[i]*frame_size_list[i]]
+        STE_list[i] = calc_STE(signal_frames_list[i])
+        ZCR_list[i] = calc_ZCR(signal_frames_list[i])
+        STE_voiced_list[i], STE_unvoiced_list[i] = separate_vu(STE_list[i], timestamp_label_list[i], t_list[i])
+        ZCR_voiced_list[i], ZCR_unvoiced_list[i] = separate_vu(ZCR_list[i], timestamp_label_list[i], t_list[i])
     signal, sr, t, timestamp_label=load_data(audio_name)
     signal_frames, time_frames, frame_size, frames_count = separate_frames(signal, sr, t)
     signal = signal[:frames_count * frame_size]
