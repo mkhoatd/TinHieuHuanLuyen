@@ -2,7 +2,7 @@
 import numpy as np
 import librosa
 import plotly.graph_objects as go
-
+from plotly.subplots import make_subplots
 
 # speech-silence and voice-unvoiced
 def read_lab(lab_file_name: str):
@@ -26,7 +26,7 @@ def get_closest_idx(array_time, values):
     array_time = np.array(array_time)
     values = np.array(values, dtype=np.float64)
     idx = np.searchsorted(array_time, values, side='left')
-    idx = np.array(idx)   # idx[array_time[idx] - values > np.diff(array_time).mean() * 0.5] -= 1
+    idx = np.array(idx)   
     return idx
 
 
@@ -68,7 +68,7 @@ def load_data(audio_name: str):
     return signal, sr, t_without_sl, timestamp_label
 
 
-def separate_frames(signal, sr, t, frame_length=0.02):
+def separate_frames(signal, sr, t, frame_length=0.025):
     frame_size = int(sr * frame_length)
     frame_count = len(signal) // frame_size
     temp = 0
@@ -158,10 +158,33 @@ def jitter_remove(VU_jit, frame_size):
     STA_VU=1/frame_size*STA_VU
     VU=np.where(STA_VU>=0.5, 1, 0)
     return VU
+
+
+def plot_voiced_unvoiced(audio_name, signal, t, timestamp_label, VU):
+    fig = make_subplots(rows=2, cols=1)
+    fig.add_trace(go.Scatter(x=t, y=signal, name='signal'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=t, y=signal, name='signal'), row=2, col=1)
+    fig.add_trace(go.Scatter(x=t, y=VU, name='VU'), row=2, col=1)
+    for i in range(len(timestamp_label)):
+        color = 'green' if timestamp_label[i][2] == 'v' else 'blue'
+        fig.add_vrect(x0=float(timestamp_label[i][0]), x1=float(timestamp_label[i][1]),
+                    fillcolor=color,
+                    opacity=0.25, line_width=0, row=2, col=1)
+    for i in range(len(timestamp_label)):
+        color = 'green' if timestamp_label[i][2] == 'v' else 'blue'
+        fig.add_vrect(x0=float(timestamp_label[i][0]), x1=float(timestamp_label[i][1]),
+                    fillcolor=color,
+                    opacity=0.25, line_width=0, row=1, col=1)
+    VU_sep=np.diff(VU)
+    for i in range(len(VU_sep)):
+        
+    fig.update_layout(
+        title=audio_name
+    )
+    fig.show()
 # %%
 
-def voiced_unvoiced(audio_name: str):
-    audio_name_list=['studio_F1', 'studio_M1', 'phone_M1', 'phone_F1']
+def voiced_unvoiced(audio_name_list, plot_name_list):
     signal_list=[0]*len(audio_name_list)
     sr_list=[0]*len(audio_name_list)
     t_list=[0]*len(audio_name_list)
@@ -185,57 +208,22 @@ def voiced_unvoiced(audio_name: str):
         ZCR_list[i] = calc_ZCR(signal_frames_list[i])
         STE_voiced_list[i], STE_unvoiced_list[i] = separate_vu(STE_list[i], timestamp_label_list[i], t_list[i])
         ZCR_voiced_list[i], ZCR_unvoiced_list[i] = separate_vu(ZCR_list[i], timestamp_label_list[i], t_list[i])
-    signal, sr, t, timestamp_label=load_data(audio_name)
-    signal_frames, time_frames, frame_size, frames_count = separate_frames(signal, sr, t)
-    signal = signal[:frames_count * frame_size]
-    t = t[:frames_count * frame_size]
-    STE = calc_STE(signal_frames)
-    ZCR = calc_ZCR(signal_frames)
-    STE_voiced, STE_unvoiced = separate_vu(STE, timestamp_label, t)
-    ZCR_voiced, ZCR_unvoiced = separate_vu(ZCR, timestamp_label, t)
-    T_STE = calc_T_binsearch(STE_voiced, STE_unvoiced)
-    T_ZCR = calc_T_binsearch(ZCR_voiced, ZCR_unvoiced)
-    STE_norm_T = array_norm_by_T(STE, T_STE)
-    ZCR_norm_T = array_norm_by_T(ZCR, T_ZCR)
-    VU_jit = np.sign(STE_norm_T - ZCR_norm_T)
-    VU = jitter_remove(VU_jit, frame_size)
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=t, y=signal, name='signal'))
-    # fig.add_trace(go.Scatter(x=t, y=STE_norm_T, name='STE', line=dict(color='firebrick', width=1, dash='dot')))
-    # fig.add_trace(go.Scatter(x=t, y=ZCR_norm_T, name='ZCR'))
-    fig.add_trace(go.Scatter(x=t, y=VU, name='VU'))
-    # fig.add_trace(go.Scatter(x=t, y=VU_jit, name='VU_jit'))
-    for i in range(len(timestamp_label)):
-        color = 'green' if timestamp_label[i][2] == 'v' else 'blue'
-        fig.add_vrect(x0=float(timestamp_label[i][0]), x1=float(timestamp_label[i][1]),
-                    fillcolor=color,
-                    opacity=0.25, line_width=0)
-    fig.update_layout(
-        title=audio_name
-    )
-    fig.show()
-# audio_name = 'phone_F1'
-# signal, sr, t, timestamp_label = load_data(audio_name)
-# signal_frames, time_frames, frame_size, frames_count = separate_frames(signal, sr, t)
-# signal = signal[:frames_count * frame_size]
-# t = t[:frames_count * frame_size]
-
-# # %%
-# # Calculate STE
-# STE = calc_STE(signal_frames)
-# ZCR = calc_ZCR(signal_frames)
-# # %%
-# STE_voiced, STE_unvoiced = separate_vu(STE, timestamp_label, t)
-# ZCR_voiced, ZCR_unvoiced = separate_vu(ZCR, timestamp_label, t)
-# # %%
-# T_STE = calc_T_binsearch(STE_voiced, STE_unvoiced) / np.ones(len(t))
-# T_ZCR = calc_T_binsearch(ZCR_voiced, ZCR_unvoiced) / np.ones(len(t))
-# #%%
-# STE_norm_T=array_norm_by_T(STE, T_STE)
-# ZCR_norm_T=array_norm_by_T(ZCR, T_ZCR)
-# VU_jit=np.sign(STE_norm_T-ZCR_norm_T)
-# VU=jitter_remove(VU_jit, int(sr*0.02))
+    T_STE = calc_T_binsearch(np.concatenate(STE_voiced_list), np.concatenate(STE_unvoiced_list))
+    T_ZCR = calc_T_binsearch(np.concatenate(ZCR_voiced_list), np.concatenate(ZCR_unvoiced_list))
+    STE_norm_T_list=[0]*len(audio_name_list)
+    ZCR_norm_T_list=[0]*len(audio_name_list)
+    VU_jit_list=[0]*len(audio_name_list)
+    VU_list=[0]*len(audio_name_list)
+    for i in range(len(audio_name_list)):
+        STE_norm_T_list[i]=array_norm_by_T(STE_list[i], T_STE)
+        ZCR_norm_T_list[i]=array_norm_by_T(ZCR_list[i], T_ZCR)
+        VU_jit_list[i]=np.sign(STE_norm_T_list[i]-ZCR_norm_T_list[i])
+        VU_list[i]=jitter_remove(VU_jit_list[i], frame_size_list[i])
+        if audio_name_list[i] in plot_name_list:
+            plot_voiced_unvoiced(audio_name_list[i], signal_list[i], t_list[i], timestamp_label_list[i], VU_list[i])
 # %%
-voiced_unvoiced('phone_F1')
+audio_name_list=['studio_F1', 'studio_M1', 'phone_M1', 'phone_F1', 'studio_F2', 'studio_M2', 'phone_M2', 'phone_F2']
+plot_name_list=['studio_F1', 'studio_M1', 'phone_M1', 'phone_F1']
+voiced_unvoiced(audio_name_list, plot_name_list)
 
 # %%
