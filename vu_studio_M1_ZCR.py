@@ -26,7 +26,8 @@ def get_closest_idx(array_time, values):
     array_time = np.array(array_time)
     values = np.array(values, dtype=np.float64)
     idx = np.searchsorted(array_time, values, side='left')
-    idx = np.array(idx)   # idx[array_time[idx] - values > np.diff(array_time).mean() * 0.5] -= 1
+    idx = np.array(idx)
+    # idx[array_time[idx] - values > np.diff(array_time).mean() * 0.5] -= 1
     return idx
 
 
@@ -77,13 +78,13 @@ def separate_frames(signal, sr, t, frame_length=0.02):
     for i in range(0, frame_count * frame_size, frame_size):
         signal_frames.append(signal[i:i + frame_size])
         time_frames.append(t[i:i + frame_size])
+        # signal_frames=np.append(signal_frames, signal[i:i+frame_size])
+        # time_frames=np.append(time_frames, t[i:i+frame_size])
     return np.array(signal_frames), np.array(time_frames), frame_size, frame_count
 
 
 def calc_STE(signal_frames):
     STE = []
-    frame_size=len(signal_frames[0])
-    frames_count=len(signal_frames)
     for i in range(frames_count):
         value = np.sum(np.square(signal_frames[i])) / np.ones(frame_size)
         STE.append(value)
@@ -96,8 +97,6 @@ def calc_STE(signal_frames):
 
 def calc_ZCR(signal_frames):
     ZCR = []
-    frames_count=len(signal_frames)
-    frame_size=len(signal_frames[0])
     for i in range(frames_count):
         value = np.sum(np.abs(np.diff(np.sign(signal_frames[i])))) / np.ones(frame_size)
         ZCR.append(value)
@@ -150,80 +149,43 @@ def calc_T_binsearch(g, f):
         i = sum(f < T)
     return T
 
-def jitter_remove(VU_jit, frame_size):
-    frames_count=len(VU_jit)//frame_size
-    STA_VU=np.array([])
-    for i in range(0, frames_count*frame_size, frame_size):
-        STA_VU=np.append(STA_VU, np.sum(VU_jit[i:i+frame_size])/np.ones(frame_size))
-    STA_VU=1/frame_size*STA_VU
-    VU=np.where(STA_VU>=0.5, 1, 0)
-    return VU
+
+
+
 # %%
+audio_name = 'studio_F1'
+signal, sr, t, timestamp_label = load_data(audio_name)
+signal_frames, time_frames, frame_size, frames_count = separate_frames(signal, sr, t, frame_length=0.04)
+signal = signal[:frames_count * frame_size]
+t = t[:frames_count * frame_size]
 
-def voiced_unvoiced(audio_name: str):
-    audio_name_list=['studio_F1', 'studio_M1', 'phone_M1', 'phone_F1']
-    signal_list=[]
-    sr_list=[]
-    t_list=[]
-    timestamp_label_list=[]
-    signal_frames_list=[]
-    time_frames_list=[]
-    frame_size_list=[]
-    frames_count_list=[]
-    for i in range(len(audio_name_list))
-        signal_list[i], sr_list[i], t_list[i], timestamp_label_list[i] = load_data(audio_name_list[i])
-    
-    signal, sr, t, timestamp_label=load_data(audio_name)
-    signal_frames, time_frames, frame_size, frames_count = separate_frames(signal, sr, t)
-    signal = signal[:frames_count * frame_size]
-    t = t[:frames_count * frame_size]
-    STE = calc_STE(signal_frames)
-    ZCR = calc_ZCR(signal_frames)
-    STE_voiced, STE_unvoiced = separate_vu(STE, timestamp_label, t)
-    ZCR_voiced, ZCR_unvoiced = separate_vu(ZCR, timestamp_label, t)
-    T_STE = calc_T_binsearch(STE_voiced, STE_unvoiced)
-    T_ZCR = calc_T_binsearch(ZCR_voiced, ZCR_unvoiced)
-    STE_norm_T = array_norm_by_T(STE, T_STE)
-    ZCR_norm_T = array_norm_by_T(ZCR, T_ZCR)
-    VU_jit = np.sign(STE_norm_T - ZCR_norm_T)
-    VU = jitter_remove(VU_jit, frame_size)
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=t, y=signal, name='signal'))
-    # fig.add_trace(go.Scatter(x=t, y=STE_norm_T, name='STE', line=dict(color='firebrick', width=1, dash='dot')))
-    # fig.add_trace(go.Scatter(x=t, y=ZCR_norm_T, name='ZCR'))
-    fig.add_trace(go.Scatter(x=t, y=VU, name='VU'))
-    # fig.add_trace(go.Scatter(x=t, y=VU_jit, name='VU_jit'))
-    for i in range(len(timestamp_label)):
-        color = 'green' if timestamp_label[i][2] == 'v' else 'blue'
-        fig.add_vrect(x0=float(timestamp_label[i][0]), x1=float(timestamp_label[i][1]),
-                    fillcolor=color,
-                    opacity=0.25, line_width=0)
-    fig.update_layout(
-        title=audio_name
-    )
-    fig.show()
-# audio_name = 'phone_F1'
-# signal, sr, t, timestamp_label = load_data(audio_name)
-# signal_frames, time_frames, frame_size, frames_count = separate_frames(signal, sr, t)
-# signal = signal[:frames_count * frame_size]
-# t = t[:frames_count * frame_size]
-
-# # %%
-# # Calculate STE
-# STE = calc_STE(signal_frames)
-# ZCR = calc_ZCR(signal_frames)
-# # %%
-# STE_voiced, STE_unvoiced = separate_vu(STE, timestamp_label, t)
-# ZCR_voiced, ZCR_unvoiced = separate_vu(ZCR, timestamp_label, t)
-# # %%
-# T_STE = calc_T_binsearch(STE_voiced, STE_unvoiced) / np.ones(len(t))
-# T_ZCR = calc_T_binsearch(ZCR_voiced, ZCR_unvoiced) / np.ones(len(t))
-# #%%
-# STE_norm_T=array_norm_by_T(STE, T_STE)
-# ZCR_norm_T=array_norm_by_T(ZCR, T_ZCR)
-# VU_jit=np.sign(STE_norm_T-ZCR_norm_T)
-# VU=jitter_remove(VU_jit, int(sr*0.02))
 # %%
-voiced_unvoiced('phone_F1')
-
+# Calculate STE
+STE = calc_STE(signal_frames)
+ZCR = calc_ZCR(signal_frames)
+# %%
+STE_voiced, STE_unvoiced = separate_vu(STE, timestamp_label, t)
+ZCR_voiced, ZCR_unvoiced = separate_vu(ZCR, timestamp_label, t)
+# %%
+T_STE = calc_T_binsearch(STE_voiced, STE_unvoiced) / np.ones(len(t))
+T_ZCR = calc_T_binsearch(ZCR_voiced, ZCR_unvoiced) / np.ones(len(t))
+#%%
+STE_norm_T=array_norm_by_T(STE, T_STE)
+ZCR_norm_T=array_norm_by_T(ZCR, T_ZCR)
+# %%
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=t, y=signal, name='signal'))
+fig.add_trace(go.Scatter(x=t, y=STE_norm_T, name='STE', line=dict(color='firebrick', width=1, dash='dot')))
+fig.add_trace(go.Scatter(x=t, y=ZCR_norm_T, name='ZCR'))
+# fig.add_trace(go.Scatter(x=t, y=T_STE, name='T_STE'))
+# fig.add_trace(go.Scatter(x=t, y=T_ZCR, name='T_ZCR'))
+for i in range(len(timestamp_label)):
+    color = 'green' if timestamp_label[i][2] == 'v' else 'blue'
+    fig.add_vrect(x0=float(timestamp_label[i][0]), x1=float(timestamp_label[i][1]),
+                  fillcolor=color,
+                  opacity=0.25, line_width=0)
+fig.update_layout(
+    title=audio_name
+)
+fig.show()
 # %%
