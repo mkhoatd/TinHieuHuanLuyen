@@ -134,10 +134,10 @@ def calc_T_binsearch(g, f):
     Tmax = max(np.max(f), np.max(g))
     Tmin = min(np.min(f), np.min(g))
     T = (Tmax + Tmin) / 2
-    p = sum(g > T)
-    i = sum(f < T)
     j = -1
     q = -1
+    p = sum(g > T)
+    i = sum(f < T)
     while j != j or p != q:
         if 1 / Nf * np.sum(f[f > T] - T) - 1 / Ng * np.sum(T - g[g < T]) > 0:
             Tmin = T
@@ -148,6 +148,7 @@ def calc_T_binsearch(g, f):
         q = p
         p = sum(g > T)
         i = sum(f < T)
+    print(f"T={T}")
     return T
 
 def jitter_remove(VU_jit, frame_size):
@@ -160,28 +161,63 @@ def jitter_remove(VU_jit, frame_size):
     return VU
 
 
-def plot_voiced_unvoiced(audio_name, signal, t, timestamp_label, VU):
-    fig = make_subplots(rows=2, cols=1)
-    fig.add_trace(go.Scatter(x=t, y=signal, name='signal'), row=1, col=1)
-    fig.add_trace(go.Scatter(x=t, y=signal, name='signal'), row=2, col=1)
-    fig.add_trace(go.Scatter(x=t, y=VU, name='VU'), row=2, col=1)
+def plot_voiced_unvoiced(audio_name, signal, t, timestamp_label, STE, ZCR, VU, renderer='notebook'):
+    fig = make_subplots(rows=4, cols=1)
+    fig.add_trace(go.Scatter(x=t, y=signal, name='signal', line=dict(color='blue')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=t, y=STE, name='STE'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=t, y=ZCR, name='ZCR'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=t, y=signal, name='signal', line=dict(color='blue')), row=2, col=1)
+    fig.add_trace(go.Scatter(x=t, y=signal, name='signal', line=dict(color='blue')), row=3, col=1)
+    fig.add_trace(go.Scatter(x=t, y=signal, name='signal', line=dict(color='blue')), row=4, col=1)    
     for i in range(len(timestamp_label)):
         color = 'green' if timestamp_label[i][2] == 'v' else 'blue'
         fig.add_vrect(x0=float(timestamp_label[i][0]), x1=float(timestamp_label[i][1]),
                     fillcolor=color,
                     opacity=0.25, line_width=0, row=2, col=1)
-    for i in range(len(timestamp_label)):
-        color = 'green' if timestamp_label[i][2] == 'v' else 'blue'
-        fig.add_vrect(x0=float(timestamp_label[i][0]), x1=float(timestamp_label[i][1]),
-                    fillcolor=color,
-                    opacity=0.25, line_width=0, row=1, col=1)
+        # fig.add_vrect(x0=float(timestamp_label[i][0]), x1=float(timestamp_label[i][1]),
+        #             fillcolor=color,
+        #             opacity=0.25, line_width=0, row=1, col=1)
+        fig.add_vline(x=float(timestamp_label[i][0]), line_color='red', row=4, col=1)
+        fig.add_vline(x=float(timestamp_label[i][1]), line_color='red', row=4, col=1)
     VU_sep=np.diff(VU)
+    cal_timestamp_label=[]
+    first_timestamp=0
+    temp_timestamp=[]
     for i in range(len(VU_sep)):
-        
+        if first_timestamp==0:
+            if VU_sep[i]==-1:
+                cal_timestamp_label.append([t[0], t[i], 'v'])
+                temp_timestamp=[t[i], 'uv']
+                first_timestamp=1
+            if VU_sep[i]==1:
+                cal_timestamp_label.append([t[0], t[i], 'uv'])
+                temp_timestamp=[t[i], 'v']
+                first_timestamp=1
+            continue
+        if VU_sep[i] == -1:
+            cal_timestamp_label.append([temp_timestamp[0], t[i], temp_timestamp[1]])
+            temp_timestamp=[t[i], 'uv']
+            continue
+        if VU_sep[i]==1:
+            cal_timestamp_label.append([temp_timestamp[0], t[i], temp_timestamp[1]])
+            temp_timestamp=[t[i], 'v']
+            continue
+        if i==len(VU_sep)-1:
+            cal_timestamp_label.append([temp_timestamp[0], t[i], temp_timestamp[1]])
+    for i in range(len(cal_timestamp_label)):
+        color = 'green' if cal_timestamp_label[i][2] == 'v' else 'blue'
+        fig.add_vrect(x0=float(cal_timestamp_label[i][0]), x1=float(cal_timestamp_label[i][1]),
+                    fillcolor=color,
+                    opacity=0.25, line_width=0, row=3, col=1)
+        fig.add_vline(x=float(cal_timestamp_label[i][0]), line_color='blue', row=4, col=1)
+        fig.add_vline(x=float(cal_timestamp_label[i][1]), line_color='blue', row=4, col=1)        
+    
+    names={'Plot 1': 'Đồ thị STE và ZCR', 'Plot 2': 'Đồ thị Voice-Unvoice chuẩn', 'Plot 3': 'Đồ thị Voice-Unvoice do thuật toán', 'Plot 4': 'Đồ thị so sánh kết quả đạt được'}
+    fig.for_each_annotation(lambda a: a.update(text = a.text + ': ' + names[a.text]))
     fig.update_layout(
         title=audio_name
     )
-    fig.show()
+    fig.show(renderer)
 # %%
 
 def voiced_unvoiced(audio_name_list, plot_name_list):
@@ -199,30 +235,35 @@ def voiced_unvoiced(audio_name_list, plot_name_list):
     STE_unvoiced_list=[0]*len(audio_name_list)
     ZCR_voiced_list=[0]*len(audio_name_list)
     ZCR_unvoiced_list=[0]*len(audio_name_list)
+    T_STE_list=[0]*len(audio_name_list)
+    T_ZCR_list=[0]*len(audio_name_list)
     for i in range(len(audio_name_list)):
         signal_list[i], sr_list[i], t_list[i], timestamp_label_list[i] = load_data(audio_name_list[i])
-        signal_frames_list[i], time_frames_list[i], frame_size_list[i], frames_count_list[i] = separate_frames(signal_list[i], sr_list[i], t_list[i])
+        signal_frames_list[i], time_frames_list[i], frame_size_list[i], frames_count_list[i] = separate_frames(signal_list[i], sr_list[i], t_list[i], frame_length=0.02)
         signal_list[i]=signal_list[i][:frames_count_list[i]*frame_size_list[i]]
         t_list[i]=t_list[i][:frames_count_list[i]*frame_size_list[i]]
         STE_list[i] = calc_STE(signal_frames_list[i])
         ZCR_list[i] = calc_ZCR(signal_frames_list[i])
         STE_voiced_list[i], STE_unvoiced_list[i] = separate_vu(STE_list[i], timestamp_label_list[i], t_list[i])
         ZCR_voiced_list[i], ZCR_unvoiced_list[i] = separate_vu(ZCR_list[i], timestamp_label_list[i], t_list[i])
-    T_STE = calc_T_binsearch(np.concatenate(STE_voiced_list), np.concatenate(STE_unvoiced_list))
-    T_ZCR = calc_T_binsearch(np.concatenate(ZCR_voiced_list), np.concatenate(ZCR_unvoiced_list))
+    T_STE_list[0] = calc_T_binsearch(np.concatenate(STE_voiced_list), np.concatenate(STE_unvoiced_list))
+    T_ZCR_list[0] = calc_T_binsearch(np.concatenate(ZCR_voiced_list), np.concatenate(ZCR_unvoiced_list))
+    for i in range(1, len(audio_name_list)):
+        T_STE_list[i] = T_STE_list[0]
+        T_ZCR_list[i] = T_ZCR_list[0]
     STE_norm_T_list=[0]*len(audio_name_list)
     ZCR_norm_T_list=[0]*len(audio_name_list)
     VU_jit_list=[0]*len(audio_name_list)
     VU_list=[0]*len(audio_name_list)
     for i in range(len(audio_name_list)):
-        STE_norm_T_list[i]=array_norm_by_T(STE_list[i], T_STE)
-        ZCR_norm_T_list[i]=array_norm_by_T(ZCR_list[i], T_ZCR)
+        STE_norm_T_list[i]=array_norm_by_T(STE_list[i], T_STE_list[i])
+        ZCR_norm_T_list[i]=array_norm_by_T(ZCR_list[i], T_ZCR_list[i])
         VU_jit_list[i]=np.sign(STE_norm_T_list[i]-ZCR_norm_T_list[i])
         VU_list[i]=jitter_remove(VU_jit_list[i], frame_size_list[i])
         if audio_name_list[i] in plot_name_list:
-            plot_voiced_unvoiced(audio_name_list[i], signal_list[i], t_list[i], timestamp_label_list[i], VU_list[i])
+            plot_voiced_unvoiced(audio_name_list[i], signal_list[i], t_list[i], timestamp_label_list[i], STE_list[i], ZCR_list[i], VU_list[i])
 # %%
-audio_name_list=['studio_F1', 'studio_M1', 'phone_M1', 'phone_F1', 'studio_F2', 'studio_M2', 'phone_M2', 'phone_F2']
+audio_name_list=['studio_F1', 'studio_M1', 'phone_M1', 'phone_F1']
 plot_name_list=['studio_F1', 'studio_M1', 'phone_M1', 'phone_F1']
 voiced_unvoiced(audio_name_list, plot_name_list)
 
